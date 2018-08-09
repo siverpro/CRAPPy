@@ -51,9 +51,6 @@ if __name__ == "__main__":
 	# Connect to db
 	db.connect()
 
-	# Find last income
-	last_income = db.get_last_income()
-	print(last_income)
 	exit()
 
 	# Get the data

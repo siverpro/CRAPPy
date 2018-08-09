@@ -68,7 +68,7 @@ class Database(object):
 	
 	def append_income(self, tax_id, timestamp, currency, amount, nok_amount, tx_hash) -> int:
 		out = 0
-		
+		posixtime = datetime.datetime.fromisoformat(timestamp).timestamp()
 		if self.income_exists(tax_id):
 			if self.print:
 				print("Transaction already exists, not appending")
@@ -79,7 +79,7 @@ class Database(object):
 
 			try:
 				query = "INSERT INTO A_Incomes (Tax_ID, Timestamp, Symbol, Amount, NOK_Amount, Tx_Hash) "
-				query += f"VALUES (\"{tax_id}\", \"{timestamp}\", \"{currency}\", {amount}, {nok_amount}, \"{tx_hash}\")"
+				query += f"VALUES (\"{tax_id}\", {posixtime}, \"{currency}\", {amount}, {nok_amount}, \"{tx_hash}\")"
 				cursor.execute(query)
 			except Exception as e:
 				raise DBError(str(e))
@@ -165,7 +165,7 @@ class Database(object):
 		var = 1
 		cursor = self.db_connection.cursor()
 		try:
-			query = "UPDATE A_Incomes SET Processed=%s WHERE Tx_ID=%s"
+			query = "UPDATE A_Incomes SET Processed=%s WHERE Income_ID=%s"
 			cursor.execute(query, (var, tx_id))
 		except Exception as e:
 			print("Error: {}".format(e))
@@ -177,6 +177,54 @@ class Database(object):
 		query = "SELECT Tax_ID FROM A_Incomes ORDER BY Income_ID DESC LIMIT 0,1"
 		cursor.execute(query)
 		return cursor.fetchone()
+
+	def get_balance(self, currency):
+		cursor = self.db_connection.cursor(dictionary=True)
+		query = f"SELECT SUM(Amount) AS Amount FROM A_Incomes WHERE Sell_Date IS NULL AND Symbol = \"{currency}\""
+		cursor.execute(query)
+		return cursor.fetchone()
+
+	def sell_currency(self, amount, currency, date):
+		cursor = self.db_connection.cursor(dictionary=True)
+		query = f"SELECT Income_ID, Amount FROM A_Incomes WHERE Sell_Date IS NULL AND Symbol = \"{currency}\" ORDER BY Timestamp ASC"
+		cursor.execute(query)
+		unsold = cursor.fetchall()
+		value = 0
+		last_id = 0
+		sold_ids = []
+		for row in unsold:
+			if value < amount:
+				value += row['Amount']
+				sold_ids.append(row['Income_ID']) # List of IDs to be sold here now.
+				last_id = row['Income_ID']
+			else:
+				break
+
+		for id in sold_ids:
+			query = f"UPDATE A_Incomes SET Sell_Date = \"{date}\" WHERE Income_ID = {id}"
+			cursor.execute(query)
+		self.db_connection.commit() # The list has now been marked as sold
+
+		if value == amount:
+			# we're done if we have a match. if not we need to split an income.
+			return
+		elif value > amount:
+			# The last income has to be split.
+			diff = value - amount
+			# The row that needs to be split
+			query = f"SELECT * FROM A_Incomes WHERE Income_ID = {last_id}"
+			cursor.execute(query)
+			original_row = cursor.fetchone()
+
+			remainder = original_row['Amount'] - diff # How much to leave to the original row
+			query = f"UPDATE A_Incomes SET Amount = {remainder} WHERE Income_ID = {last_id}"
+			cursor.execute(query)
+			self.db_connection.commit() # Original row fixd.
+
+			#Copy values into new income
+			self.append_income(original_row['Tax_ID']+last_id, original_row['Timestamp'],
+								original_row['Symbol'], diff, 0.0, original_row['Tx_Hash'])
+
 
 	def get_eur_rate(self, isodate):
 		query = f"SELECT Price FROM EUR WHERE Date=\"{isodate}\" LIMIT 0,1"
