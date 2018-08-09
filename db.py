@@ -114,7 +114,7 @@ class Database(object):
 			out = False
 		return out
 	
-	def append_sales(self, tax_id, timestamp, sell_amount, sell_currency, buy_amount, buy_currency, proceeds) -> int:
+	def append_sales(self, tax_id, timestamp, sell_amount, sell_currency, buy_amount, buy_currency, costbase) -> int:
 		out = 0
 		db_date = datetime.datetime.fromisoformat(timestamp).strftime("%Y-%m-%d")
 		if self.sale_exists(tax_id):
@@ -126,8 +126,8 @@ class Database(object):
 			cursor = self.db_connection.cursor()
 			
 			try:
-				query = "INSERT INTO A_Sales (Tax_ID, Timestamp, Sell_Amount, Sell_Currency, Buy_Amount, Buy_Currency, Proceeds) "
-				query += f"VALUES(\"{tax_id}\", \"{db_date}\", {sell_amount}, \"{sell_currency}\", {buy_amount}, \"{buy_currency}\", {proceeds})"
+				query = "INSERT INTO A_Sales (Tax_ID, Timestamp, Sell_Amount, Sell_Currency, Buy_Amount, Buy_Currency, Cost_Base) "
+				query += f"VALUES(\"{tax_id}\", \"{db_date}\", {sell_amount}, \"{sell_currency}\", {buy_amount}, \"{buy_currency}\", {costbase})"
 				cursor.execute(query)
 			except Exception as e:
 				raise DBError(str(e))
@@ -140,15 +140,14 @@ class Database(object):
 		if self.print:
 			print("Retrieving transactions not sent to Fiken...")
 		cursor = self.db_connection.cursor(dictionary=True)
-		cursor.execute("SELECT A_Incomes, Date, NOK_Amount, Foreign_Amount, Foreign_Currency FROM Tx_Log WHERE Processed = 0")
-		
+		cursor.execute("SELECT * FROM A_Incomes WHERE Processed = 0")
 		return cursor.fetchall()
 
 	def get_unprocessed_sales(self):
 		if self.print:
 			print("Retrieving sales not sent to Fiken...")
 		cursor = self.db_connection.cursor(dictionary=True)
-		cursor.execute("SELECT A_Sales, Date, Cost_Base, Proceeds, Gains, Foreign_Amount, Foreign_Currency FROM Sale_Log WHERE Processed = 0")
+		cursor.execute("SELECT * FROM A_Sales WHERE Processed = 0")
 		return cursor.fetchall()
 
 	def process_sale(self, sale_id):
@@ -162,22 +161,16 @@ class Database(object):
 			raise DBError(str(error))
 		self.db_connection.commit()
 
-	def process_income(self, tx_id):
+	def process_income(self, income_id):
 		var = 1
 		cursor = self.db_connection.cursor()
 		try:
 			query = "UPDATE A_Incomes SET Processed=%s WHERE Income_ID=%s"
-			cursor.execute(query, (var, tx_id))
+			cursor.execute(query, (var, income_id))
 		except Exception as e:
 			print("Error: {}".format(e))
 			raise DBError(str(e))
 		self.db_connection.commit()
-
-	def get_last_income(self):
-		cursor = self.db_connection.cursor(dictionary=True)
-		query = "SELECT Tax_ID FROM A_Incomes ORDER BY Income_ID DESC LIMIT 0,1"
-		cursor.execute(query)
-		return cursor.fetchone()
 
 	def get_balance(self, currency):
 		cursor = self.db_connection.cursor(dictionary=True)
