@@ -51,16 +51,10 @@ if __name__ == "__main__":
 	
 	# Connect to db
 	db.connect()
-#	print(db.get_balance("FCT"))
-#	costbase = db.sell_currency(decimal.Decimal(5.84), "FCT", "2018-08-01")
-#	print(db.get_balance("FCT"))
-#	print("Costbase for this sale: "+str(costbase))
-
-#	exit()
-	# Get API data
+	
+	# Get API data for incomes
 	btcTax_data = btc_tax.get_transactions(taxyear=2018, start=0, limit=1000)
 	print("Processing incomes:")
-
 	end_date = datetime.date.today() - datetime.timedelta(days=2)
 	for row in btcTax_data['transactions']:
 
@@ -75,31 +69,20 @@ if __name__ == "__main__":
 			# Insert to database
 			db.append_income(row['id'], row['date'], row['symbol'], row['volume'], nok_amount, row['txhash'])
 	
-	# Do the sales in a separate loop
-#	print("Processing sales:")
-#	for row in btcTax_data['transactions'][::-1]: # We need to reverse this
-#		income_time = datetime.datetime.fromisoformat(row['date'])
-#		if end_date > income_time.date() and row['action'] == "SELL":
-#			if row['feecurrency'] == row['currency']:
-#				buy_amount = (row['volume'] * row['price']) - row['fee']
-#			elif row['feecurrency'] == row['symbol']:
-#				buy_amount = (row['volume'] - row['fee']) * row['price']
-#			else:
-#				buy_amount = row['volume'] * row['price']
-#
-#			if row['currency'] == "USD" or row['currency'] == "EUR":
-#				rate = db.get_rate_from_bank(income_time.strftime("%Y-%m-%d"), row['currency'])
-#				proceeds = buy_amount * decimal.Decimal(rate)
-#			else:
-#				proceeds = db.sell_currency(row['volume'], row['symbol'], income_time.strftime("%Y-%m-%d"))
-#			db.append_sales(row['id'], row['date'], row['volume'], row['symbol'], buy_amount, row['currency'], proceeds)
-			
 
 	# Get sales data from CSV
 	btcTax_csv = btc_tax.get_data()
+	print("Processing sales:")
 	print("Total sales: {}".format(len(btcTax_csv["sales"])))
 	for row in btcTax_csv['sales']:
 		costbase = db.sell_currency(row['Volume'], row['Symbol'], row['Date Sold'])
 		db.append_sales(row['Date Sold']+row['Symbol'], row['Date Sold'], row['Volume'], row['Symbol'], row['Proceeds'], "NOK", costbase)
+
+
+	unprocessed_incomes = db.get_unprocessed_incomes()
+	unprocessed_sales = db.get_unprocessed_sales()
+
+
 	db.close_connection()
+
 	
