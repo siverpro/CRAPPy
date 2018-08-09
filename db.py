@@ -185,6 +185,11 @@ class Database(object):
 		return cursor.fetchone()['Amount']
 
 	def sell_currency(self, amount, currency, date):
+		holdings = self.get_balance(currency)
+		if amount > holdings:
+			print("You cannot sell more than you hold.")
+			return
+
 		cursor = self.db_connection.cursor(dictionary=True)
 		query = "SELECT Income_ID, Amount FROM A_Incomes WHERE Sell_Date IS NULL "
 		query += f"AND Symbol = \"{currency}\" ORDER BY Timestamp ASC"

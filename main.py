@@ -52,10 +52,10 @@ if __name__ == "__main__":
 	# Connect to db
 	db.connect()
 	print(db.get_balance("FCT"))
-	db.sell_currency(decimal.Decimal(5.84), "FCT", "2018-07-25")
+#	db.sell_currency(decimal.Decimal(5.84), "FCT", "2018-07-25")
 #	print(db.get_balance("FCT"))
 
-	exit()
+#	exit()
 	# Get the data
 	btcTax_data = btc_tax.get_transactions(taxyear=2018, start=0, limit=1000)
 
@@ -64,15 +64,17 @@ if __name__ == "__main__":
 		# Wait 2 days until we process stuff
 		income_time = datetime.datetime.fromisoformat(row['date'])
 		end_date = datetime.date.today() - datetime.timedelta(days=2)
-		if end_date < income_time.date() or row['action'] != "INCOME":
-			pass
-		else:
+
+		if end_date > income_time.date() and row['action'] == "INCOME":
 			# Calculate NOK value from EUR
 			rate = db.get_eur_rate(income_time.strftime("%Y-%m-%d"))
 			nok_amount = row['volume'] * row['price'] * decimal.Decimal(rate)
-			
+	
 			# Insert to database
 			db.append_income(row['id'], row['date'], row['symbol'], row['volume'], nok_amount, row['txhash'])
+		elif end_date > income_time.date() and row['action'] == "SELL":
+				print(row)
+			
 
 	db.close_connection()
 	
