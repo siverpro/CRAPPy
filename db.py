@@ -186,7 +186,8 @@ class Database(object):
 
 	def sell_currency(self, amount, currency, date):
 		cursor = self.db_connection.cursor(dictionary=True)
-		query = f"SELECT Income_ID, Amount FROM A_Incomes WHERE Sell_Date IS NULL AND Symbol = \"{currency}\" ORDER BY Timestamp ASC"
+		query = "SELECT Income_ID, Amount FROM A_Incomes WHERE Sell_Date IS NULL "
+		query += f"AND Symbol = \"{currency}\" ORDER BY Timestamp ASC"
 		cursor.execute(query)
 		unsold = cursor.fetchall()
 		value = 0
@@ -195,12 +196,12 @@ class Database(object):
 		for row in unsold:
 			if value < amount:
 				value += row['Amount']
-				sold_ids.append(row['Income_ID']) # List of IDs to be sold here now.
+				sold_ids.append(row['Income_ID']) # List of IDs to be sold
 				last_id = row['Income_ID']
 			else:
 				break
 
-		for id in sold_ids:
+		for id in sold_ids: # mark them as sold
 			query = f"UPDATE A_Incomes SET Sell_Date = \"{date}\" WHERE Income_ID = {id}"
 			cursor.execute(query)
 		self.db_connection.commit() # The list has now been marked as sold
@@ -216,7 +217,7 @@ class Database(object):
 			cursor.execute(query)
 			original_row = cursor.fetchone()
 
-			remainder = original_row['Amount'] - diff # How much to leave to the original row
+			remainder = original_row['Amount'] - diff # How much to leave in the original row
 			query = f"UPDATE A_Incomes SET Amount = {remainder} WHERE Income_ID = {last_id}"
 			cursor.execute(query)
 			self.db_connection.commit() # Original row fixd.
