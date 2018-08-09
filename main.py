@@ -77,7 +77,7 @@ if __name__ == "__main__":
 	
 	# Do the sales in a separate loop
 	print("Processing sales:")
-	for row in btcTax_data['transactions']:
+	for row in btcTax_data['transactions'][::-1]: # We need to reverse this
 		income_time = datetime.datetime.fromisoformat(row['date'])
 		if end_date > income_time.date() and row['action'] == "SELL":
 			if row['feecurrency'] == row['currency']:
