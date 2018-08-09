@@ -182,7 +182,7 @@ class Database(object):
 		cursor = self.db_connection.cursor(dictionary=True)
 		query = f"SELECT SUM(Amount) AS Amount FROM A_Incomes WHERE Sell_Date IS NULL AND Symbol = \"{currency}\""
 		cursor.execute(query)
-		return cursor.fetchone()
+		return cursor.fetchone()['Amount']
 
 	def sell_currency(self, amount, currency, date):
 		cursor = self.db_connection.cursor(dictionary=True)
@@ -223,7 +223,8 @@ class Database(object):
 			self.db_connection.commit() # Original row fixd.
 
 			#Copy values into new income
-			self.append_income(original_row['Tax_ID']+last_id, original_row['Timestamp'],
+			time = datetime.datetime.fromtimestamp(original_row['Timestamp']).isoformat()
+			self.append_income(original_row['Tax_ID']+str(last_id), time,
 								original_row['Symbol'], diff, 0.0, original_row['Tx_Hash'])
 
 

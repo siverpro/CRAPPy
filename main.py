@@ -3,8 +3,9 @@ import json
 from btctax import BtcTax
 from db import Database
 from fiken import Fiken
-import datetime
 import decimal
+import datetime
+
 """
 - Mottatt FCT i wallet
 	- NOK verdi av når det kom inn
@@ -50,7 +51,11 @@ if __name__ == "__main__":
 	
 	# Connect to db
 	db.connect()
+	print(db.get_balance("FCT"))
+	db.sell_currency(decimal.Decimal(5.84), "FCT", "2018-07-25")
+#	print(db.get_balance("FCT"))
 
+	exit()
 	# Get the data
 	btcTax_data = btc_tax.get_transactions(taxyear=2018, start=0, limit=1000)
 
