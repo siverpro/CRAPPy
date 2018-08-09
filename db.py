@@ -102,22 +102,22 @@ class Database(object):
 			out = False
 		return out
 	
-	def sale_exists(self, date, cost_base, proceeds, gains, foreign_amount, foreign_currency):
+	def sale_exists(self, tax_id):
 		out = True
 		cursor = self.db_connection.cursor()
 		
-		query = "SELECT Sale_ID FROM A_Sales WHERE Date = %s AND Cost_Base = %s AND Proceeds = %s AND Gains = %s AND Foreign_Amount = %s AND Foreign_Currency = %s LIMIT 0,1"
-		cursor.execute(query, (date, cost_base, proceeds, gains, foreign_amount, foreign_currency))
+		query = f"SELECT Sale_ID FROM A_Sales WHERE Tax_ID = \"{tax_id}\" LIMIT 0,1"
+		cursor.execute(query)
 		# Check db for duplicates
 		if cursor.fetchone() is None:
 			# return false if no match is found
 			out = False
 		return out
 	
-	def append_sales_log(self, date, cost_base, proceeds, gains, foreign_amount, foreign_currency) -> int:
+	def append_sales(self, tax_id, timestamp, sell_amount, sell_currency, buy_amount, buy_currency, proceeds) -> int:
 		out = 0
-		
-		if self.sale_exists(date, cost_base, proceeds, gains, foreign_amount, foreign_currency):
+		db_date = datetime.datetime.fromisoformat(timestamp).strftime("%Y-%m-%d")
+		if self.sale_exists(tax_id):
 			if self.print:
 				print("Sale already exists, not appending")
 		else:
@@ -126,8 +126,9 @@ class Database(object):
 			cursor = self.db_connection.cursor()
 			
 			try:
-				query = "INSERT INTO A_Sales (Date, Cost_Base, Proceeds, Gains, Foreign_Amount, Foreign_Currency) VALUES(%s, %s, %s, %s, %s, %s)"
-				cursor.execute(query, (date, cost_base, proceeds, gains, foreign_amount, foreign_currency))
+				query = "INSERT INTO A_Sales (Tax_ID, Timestamp, Sell_Amount, Sell_Currency, Buy_Amount, Buy_Currency, Proceeds) "
+				query += f"VALUES(\"{tax_id}\", \"{db_date}\", {sell_amount}, \"{sell_currency}\", {buy_amount}, \"{buy_currency}\", {proceeds})"
+				cursor.execute(query)
 			except Exception as e:
 				raise DBError(str(e))
 			
@@ -186,22 +187,27 @@ class Database(object):
 
 	def sell_currency(self, amount, currency, date):
 		holdings = self.get_balance(currency)
+		if not holdings:
+			print("You don't have any currency of this type.")
+			return None
 		if amount > holdings:
 			print("You cannot sell more than you hold.")
-			return
+			return None
 
 		cursor = self.db_connection.cursor(dictionary=True)
-		query = "SELECT Income_ID, Amount FROM A_Incomes WHERE Sell_Date IS NULL "
+		query = "SELECT Income_ID, Amount, NOK_Amount FROM A_Incomes WHERE Sell_Date IS NULL "
 		query += f"AND Symbol = \"{currency}\" ORDER BY Timestamp ASC"
 		cursor.execute(query)
 		unsold = cursor.fetchall()
 		value = 0
+		cost_base = 0
 		last_id = 0
 		sold_ids = []
 		for row in unsold:
 			if value < amount:
 				value += row['Amount']
 				sold_ids.append(row['Income_ID']) # List of IDs to be sold
+				cost_base += row['NOK_Amount']
 				last_id = row['Income_ID']
 			else:
 				break
@@ -213,7 +219,7 @@ class Database(object):
 
 		if value == amount:
 			# we're done if we have a match. if not we need to split an income.
-			return
+			return cost_base
 		elif value > amount:
 			# The last income has to be split.
 			diff = value - amount
@@ -222,15 +228,26 @@ class Database(object):
 			cursor.execute(query)
 			original_row = cursor.fetchone()
 
+
 			remainder = original_row['Amount'] - diff # How much to leave in the original row
-			query = f"UPDATE A_Incomes SET Amount = {remainder} WHERE Income_ID = {last_id}"
+			fraction = diff / original_row['Amount']
+			nok_diff = original_row['NOK_Amount'] * fraction
+			cost_base -= nok_diff
+			nok_remainder = original_row['NOK_Amount'] - nok_diff
+			print("Splitting a row:")
+			print("Original: NOK "+str(original_row['NOK_Amount']) + " FCT: "+str(original_row['Amount']))
+			print("Remainder: NOK "+str(nok_remainder)+" FCT: "+str(remainder))
+			print("New row: NOK "+str(nok_diff)+" FCT: "+str(diff))
+			query = f"UPDATE A_Incomes SET Amount = {remainder}, NOK_Amount = {nok_remainder}  WHERE Income_ID = {last_id}"
 			cursor.execute(query)
 			self.db_connection.commit() # Original row fixd.
 
 			#Copy values into new income
 			time = datetime.datetime.fromtimestamp(original_row['Timestamp']).isoformat()
 			self.append_income(original_row['Tax_ID']+str(last_id), time,
-								original_row['Symbol'], diff, 0.0, original_row['Tx_Hash'])
+								original_row['Symbol'], diff, nok_diff,
+								original_row['Tx_Hash'])
+			return cost_base
 
 
 	def get_eur_rate(self, isodate):
