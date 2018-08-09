@@ -62,18 +62,18 @@ if __name__ == "__main__":
 	print("Processing incomes:")
 
 	end_date = datetime.date.today() - datetime.timedelta(days=2)
-#	for row in btcTax_data['transactions']:
+	for row in btcTax_data['transactions']:
 
 		# Wait 2 days until we process stuff
-#		income_time = datetime.datetime.fromisoformat(row['date'])
+		income_time = datetime.datetime.fromisoformat(row['date'])
 
-#		if end_date > income_time.date() and row['action'] == "INCOME":
+		if end_date > income_time.date() and row['action'] == "INCOME":
 			# Calculate NOK value from EUR
-#			rate = db.get_eur_rate(income_time.strftime("%Y-%m-%d"))
-#			nok_amount = row['volume'] * row['price'] * decimal.Decimal(rate)
+			rate = db.get_eur_rate(income_time.strftime("%Y-%m-%d"))
+			nok_amount = row['volume'] * row['price'] * decimal.Decimal(rate)
 	
 			# Insert to database
-#			db.append_income(row['id'], row['date'], row['symbol'], row['volume'], nok_amount, row['txhash'])
+			db.append_income(row['id'], row['date'], row['symbol'], row['volume'], nok_amount, row['txhash'])
 	
 	# Do the sales in a separate loop
 	print("Processing sales:")
