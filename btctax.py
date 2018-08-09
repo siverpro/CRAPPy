@@ -61,7 +61,7 @@ class BtcTax(object):
 		with open('conf.json') as json_data_file:
 			data = json.load(json_data_file)
 			
-	def __call__(self, command):
+	def __call__(self, command, taxyear='', start='', limit= ''):
 		if command in PRIVATE_COMMANDS:
 			if command == "transactions":
 				if not self.api_key or not self.api_secret:
@@ -73,8 +73,13 @@ class BtcTax(object):
 					'X-APISECRET': self.api_secret,
 					'Accept': 'application/json',
 					'User-Agent': 'My user agent'}
-
-				ret = _get(url, headers=headers, timeout=self.timeout)
+				
+				payload = {
+					"taxyear": int(taxyear) if taxyear else "",
+					"start": int(start) if start else "",
+					"limit": int(limit) if limit else ""}
+				
+				ret = _get(url, headers=headers, timeout=self.timeout, params=payload)
 
 				if ret.status_code != 200:
 					raise BtcTaxError("Status Code: %s" % ret.status_code)
@@ -196,8 +201,8 @@ class BtcTax(object):
 	def get_capital_gains(self):
 		return self.__call__('capital_gains')
 	
-	def get_transactions(self):
-		return self.__call__('transactions')
+	def get_transactions(self, taxyear=None, start=None, limit=None):
+		return self.__call__('transactions', taxyear, start, limit)
 	
 	@staticmethod
 	def get_filtered_transaction(list_dict: dict, action: str) -> list:

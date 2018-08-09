@@ -51,10 +51,8 @@ if __name__ == "__main__":
 	# Connect to db
 	db.connect()
 
-	exit()
-
 	# Get the data
-	btcTax_data = btc_tax('transactions')
+	btcTax_data = btc_tax.get_transactions(taxyear=2018, start=0, limit=1000)
 
 	for row in btcTax_data['transactions']:
 
