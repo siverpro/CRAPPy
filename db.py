@@ -181,10 +181,11 @@ class Database(object):
 	def sell_currency(self, amount, currency, date):
 		holdings = self.get_balance(currency)
 		if not holdings:
-			print("You don't have any currency of this type.")
+			print("You don't have any {}.".format(currency))
 			return None
 		if amount > holdings:
 			print("You cannot sell more than you hold.")
+			print("Your current holdings are: {}, while you're trying to sell: {}".format(holdings, amount))
 			return None
 
 		cursor = self.db_connection.cursor(dictionary=True)
@@ -205,10 +206,10 @@ class Database(object):
 			else:
 				break
 
-		for id in sold_ids: # mark them as sold
-			query = f"UPDATE A_Incomes SET Sell_Date = \"{date}\" WHERE Income_ID = {id}"
+		for s_id in sold_ids:  # mark them as sold
+			query = f"UPDATE A_Incomes SET Sell_Date = \"{date}\" WHERE Income_ID = {s_id}"
 			cursor.execute(query)
-		self.db_connection.commit() # The list has now been marked as sold
+		self.db_connection.commit()  # The list has now been marked as sold
 
 		if value == amount:
 			# we're done if we have a match. if not we need to split an income.
@@ -221,27 +222,29 @@ class Database(object):
 			cursor.execute(query)
 			original_row = cursor.fetchone()
 
-
-			remainder = original_row['Amount'] - diff # How much to leave in the original row
+			remainder = original_row['Amount'] - diff  # How much to leave in the original row
 			fraction = diff / original_row['Amount']
 			nok_diff = original_row['NOK_Amount'] * fraction
 			cost_base -= nok_diff
 			nok_remainder = original_row['NOK_Amount'] - nok_diff
-			print("Splitting a row:")
-			print("Original: NOK "+str(original_row['NOK_Amount']) + " FCT: "+str(original_row['Amount']))
-			print("Remainder: NOK "+str(nok_remainder)+" FCT: "+str(remainder))
-			print("New row: NOK "+str(nok_diff)+" FCT: "+str(diff))
+			if self.print:
+				print("Splitting a row:")
+				print("Original: NOK {}, FCT: {}".format(original_row['NOK_Amount'], original_row['Amount']))
+				print("Remainder: NOK {}, FCT: {}".format(nok_remainder, remainder))
+				print("New row: NOK {}, FCT: {}".format(nok_diff, diff))
+			
 			query = f"UPDATE A_Incomes SET Amount = {remainder}, NOK_Amount = {nok_remainder}  WHERE Income_ID = {last_id}"
 			cursor.execute(query)
-			self.db_connection.commit() # Original row fixd.
-
-			#Copy values into new income
+			self.db_connection.commit()  # Original row fixd.
+			
+			# Copy values into new income
 			time = datetime.datetime.fromtimestamp(original_row['Timestamp']).isoformat()
-			self.append_income(original_row['Tax_ID']+str(last_id), time,
-								original_row['Symbol'], diff, nok_diff,
-								original_row['Tx_Hash'])
+			self.append_income(
+				original_row['Tax_ID']+str(last_id),
+				time,
+				original_row['Symbol'], diff, nok_diff,
+				original_row['Tx_Hash'])
 			return cost_base
-
 
 	def get_eur_rate(self, isodate):
 		query = f"SELECT Price FROM EUR WHERE Date=\"{isodate}\" LIMIT 0,1"
@@ -279,10 +282,11 @@ class Database(object):
 			out = data['dataSets'][0]['series']['0:0:0:0']['observations']['0'][0]
 		elif response.status_code == 404:
 			new_date = dateobj - datetime.timedelta(days=1)
-			print("No matches. Trying previous day: " + new_date.isoformat())
+			print("No matches. Trying previous day: {}".format(new_date.isoformat()))
 			out = self.get_rate_from_bank(new_date.isoformat(), currency)
 		else:
 			print("Invalid request")
 			print(response.status_code)
 			print(response.content)
 		return out
+	

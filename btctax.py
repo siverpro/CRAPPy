@@ -57,11 +57,8 @@ class BtcTax(object):
 		self.filtered_data = None
 		self.dict_list = []
 		self.print = print
-		
-		with open('conf.json') as json_data_file:
-			data = json.load(json_data_file)
 			
-	def __call__(self, command, taxyear='', start='', limit= ''):
+	def __call__(self, command, taxyear=None, start=None, limit=None):
 		if command in PRIVATE_COMMANDS:
 			if command == "transactions":
 				if not self.api_key or not self.api_secret:
