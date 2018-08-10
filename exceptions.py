@@ -1,3 +1,4 @@
+# 3rd party
 from requests.exceptions import HTTPError
 
 class HTTP500(HTTPError):

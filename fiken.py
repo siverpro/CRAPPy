@@ -1,3 +1,4 @@
+# Built-in
 import datetime
 from decimal import Decimal
 from json import loads as _loads
@@ -7,6 +8,7 @@ from requests import get as _get
 from requests import post as _post
 from requests.auth import HTTPBasicAuth
 
+# Own
 from exceptions import *
 
 RELS = ['createGeneralJournalEntriesService', 'search']

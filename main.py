@@ -1,10 +1,12 @@
+# Built-in
+import datetime
+from decimal import Decimal
 import json
-import sys
+
+# Own
 from btctax import BtcTax
 from db import Database
 from fiken import Fiken
-import decimal
-import datetime
 
 """
 - Mottatt FCT i wallet
@@ -57,7 +59,7 @@ if __name__ == "__main__":
 	
 	print("Processing incomes and sales:")
 	end_date = datetime.date.today() - datetime.timedelta(days=2)
-	for row in btcTax_data['transactions'][::-1]:
+	for row in btcTax_data['transactions']:
 
 		# Wait 2 days until we process stuff
 		income_time = datetime.datetime.fromisoformat(row['date'])
@@ -67,17 +69,17 @@ if __name__ == "__main__":
 			if row['action'] == "INCOME":
 				# Calculate NOK value from EUR
 				rate = db.get_eur_rate(income_time.strftime("%Y-%m-%d"))
-				nok_amount = row['volume'] * row['price'] * decimal.Decimal(rate)
+				nok_amount = row['volume'] * row['price'] * Decimal(rate)
 
 				# Insert to database
 				db.append_income(
-					row['id'],
-					row['date'],
-					row['symbol'],
-					row['volume'],
-					nok_amount,
-					row['txhash'])
-				
+					tax_id=row['id'],
+					timestamp=row['date'],
+					currency=row['symbol'],
+					amount=row['volume'],
+					nok_amount=nok_amount,
+					tx_hash=row['txhash'])
+
 			# sales
 			elif row['action'] == "SELL":
 				if row['feecurrency'] == row['currency']:
@@ -89,21 +91,21 @@ if __name__ == "__main__":
 				
 				if row['currency'] in CURRENCIES:
 					rate = db.get_rate_from_bank(income_time.strftime("%Y-%m-%d"), row['currency'])
-					proceeds = buy_amount * decimal.Decimal(rate)
+					proceeds = buy_amount * Decimal(rate)
 				else:
 					proceeds = db.sell_currency(
 						row['volume'],
 						row['symbol'],
 						income_time.strftime("%Y-%m-%d"))
-		
+					
 				db.append_sales(
-					row['id'],
-					row['date'],
-					row['volume'],
-					row['symbol'],
-					buy_amount,
-					row['currency'],
-					proceeds)
+					tax_id=row['id'],
+					timestamp=row['date'],
+					sell_amount=row['volume'],
+					sell_currency=row['symbol'],
+					buy_amount=buy_amount,
+					buy_currency=row['currency'],
+					costbase=proceeds)
 				
 	db.close_connection()
 	exit(0)

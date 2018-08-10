@@ -1,16 +1,19 @@
+# Built-in
 import csv
 import datetime
-import json
 from decimal import Decimal
 from json import loads as _loads
 
+# 3rd party
 from requests import get as _get
 from requests import session
 
+# Own
 from exceptions import *
 
-PRIVATE_COMMANDS = ['transactions',
-					'capital_gains']
+PRIVATE_COMMANDS = [
+	'transactions',
+	'capital_gains']
 
 
 class BtcTaxError(Exception):
