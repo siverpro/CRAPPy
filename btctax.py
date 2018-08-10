@@ -32,17 +32,18 @@ class BtcTaxError(Exception):
 			raise HTTP400
 
 class BtcTax(object):
-	def __init__(self,
-				 api_key=None,
-				 api_secret=None,
-				 fixer_api_key=None,
-				 username=None,
-				 password=None,
-				 timeout=5,
-				 parse_float=Decimal,
-				 parse_int=int,
-				 debug_endpoint=True,
-				 print = False):
+	def __init__(
+			self,
+			api_key=None,
+			api_secret=None,
+			fixer_api_key=None,
+			username=None,
+			password=None,
+			timeout=5,
+			parse_float=Decimal,
+			parse_int=int,
+			debug_endpoint=True,
+			print = False):
 		
 		self.api_key = str(api_key) if api_key else None
 		self.api_secret = str(api_secret) if api_secret else None
@@ -82,7 +83,7 @@ class BtcTax(object):
 				ret = _get(url, headers=headers, timeout=self.timeout, params=payload)
 
 				if ret.status_code != 200:
-					raise BtcTaxError("Status Code: %s" % ret.status_code)
+					raise BtcTaxError("Status Code: {}".format(ret.status_code))
 
 				json_out = _loads(ret.text, parse_float=self.parse_float, parse_int=self.parse_int)
 
@@ -97,10 +98,11 @@ class BtcTax(object):
 
 				url = self.base_login_url
 				s = session()
-				form = {"email": self.username,
-						"password": self.password,
-						"continue": "",
-						"code": ""}
+				form = {
+					"email": self.username,
+					"password": self.password,
+					"continue": "",
+					"code": ""}
 
 				ret = s.post(url, data=form)
 
@@ -191,7 +193,7 @@ class BtcTax(object):
 			sales_list.append({
 				'Date Sold': sale_date,
 				'Proceeds': sale_sum,
-				'Cost Basis':cost_basis_sum,
+				'Cost Basis': cost_basis_sum,
 				'Gain': gain_sum,
 				'Symbol': symbol,
 				'Volume': sale_crypto_sum})
@@ -202,6 +204,7 @@ class BtcTax(object):
 		return self.__call__('capital_gains')
 	
 	def get_transactions(self, taxyear=None, start=None, limit=None):
+		
 		return self.__call__('transactions', taxyear, start, limit)
 	
 	@staticmethod
