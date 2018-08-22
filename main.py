@@ -47,8 +47,7 @@ if __name__ == "__main__":
 	fiken = Fiken(
 		user=config["FIKEN_USERNAME"],
 		passwd=config["FIKEN_PASSWORD"],
-		company_slug=config["FIKEN_COMPANY_SLUG"],
-		debug_endpoint=True)
+		company_slug=config["FIKEN_COMPANY_SLUG"])
 	
 	CURRENCIES = ['EUR', 'USD']
 	###########################################################################################################
@@ -88,9 +87,10 @@ if __name__ == "__main__":
 			"NOK",
 			costbase)
 	
-	unprocessed_incomes = db.get_unprocessed_incomes()
-	unprocessed_sales = db.get_unprocessed_sales()
+	# INCOME
+	###########################################################################################################
 	
+	unprocessed_incomes = db.get_unprocessed_incomes()
 	# Loop through the transactions and fill the journal entries and lines to fit to fiken
 	if unprocessed_incomes:
 		# Create a journal entry for fiken
@@ -123,7 +123,6 @@ if __name__ == "__main__":
 		
 	# SALES
 	###########################################################################################################
-	
 	# Retrieve unprocessed sales from database.
 	unprocessed_sales = db.get_unprocessed_sales()
 	# Loop through the transactions and fill the journal entries and lines to fit to fiken
@@ -155,7 +154,7 @@ if __name__ == "__main__":
 			
 			postering.addLine(
 				index=entry,
-				debit_amount=gains,
+				debit_amount=abs(gains),
 				debit_account=g_debit,
 				credit_account=g_credit,
 				vat_code="6")
