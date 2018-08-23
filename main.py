@@ -1,13 +1,15 @@
 # Built-in
 import datetime
-from decimal import Decimal
 import json
+from decimal import Decimal
 
+from tqdm import tqdm
+
+from FriPostering import FriPostering
 # Own
 from btctax import BtcTax
 from db import Database
 from fiken import Fiken
-from FriPostering import FriPostering
 
 """
 - Mottatt FCT i wallet
@@ -33,7 +35,7 @@ if __name__ == "__main__":
 		password=config["BITCOINTAX_PASSWORD"],
 		api_key=config["BITCOINTAX_API_KEY"],
 		api_secret=config["BITCOINTAX_API_SECRET"],
-		print=True)
+		debug=False)
 	
 	# Init DB
 	db = Database(
@@ -41,7 +43,7 @@ if __name__ == "__main__":
 		db_username=config["DB_USERNAME"],
 		db_password=config["DB_PASSWORD"],
 		db_dataname=config["DB_DATA_NAME"],
-		print=True)
+		debug=False)
 	
 	# Init Fiken
 	fiken = Fiken(
@@ -57,36 +59,37 @@ if __name__ == "__main__":
 
 	# Get API data for incomes
 	btcTax_data = btc_tax.get_transactions(taxyear=2018, start=0, limit=1000)
-	print("Processing incomes:")
+	print("Retrieving incomes:\n")
 	end_date = datetime.date.today() - datetime.timedelta(days=2)
-	for row in btcTax_data['transactions']:
-		
+	counter = 0
+	for row in tqdm(btcTax_data['transactions']):
+		counter += 1
 		# Wait 2 days until we process stuff
 		income_time = datetime.datetime.fromisoformat(row['date'])
-		
+
 		if end_date > income_time.date():
 			if row['action'] == "INCOME":
 				# Calculate NOK value from EUR
-				rate = db.get_eur_rate(income_time.strftime("%Y-%m-%d"))
+				#rate = db.get_eur_rate(income_time.strftime("%Y-%m-%d"))
+
+				rate = db.get_rate_from_bank(income_time.strftime("%Y-%m-%d"), currency=row['currency'])
 				nok_amount = row['volume'] * row['price'] * Decimal(rate)
-				
+
 				# Insert to database
 				db.append_income(row['id'], row['date'], row['symbol'], row['volume'], nok_amount, row['txhash'])
-	
+
 	# Get sales data from CSV
+	print("Retrieving sales:\n")
 	btcTax_csv = btc_tax.get_data()
-	print("Processing sales:")
-	print("Total sales: {}".format(len(btcTax_csv["sales"])))
-	for row in btcTax_csv['sales']:
-		costbase = db.sell_currency(row['Volume'], row['Symbol'], row['Date Sold'])
+	for row in tqdm(btcTax_csv['sales']):
 		db.append_sales(
 			(row['Date Sold'] + row['Symbol']),
-			row['Date Sold'], row['Volume'],
+			row['Date Sold'],
+			row['Volume'],
 			row['Symbol'],
 			row['Proceeds'],
-			"NOK",
-			costbase)
-	
+			"USD")
+	print("Total sales: {}".format(len(btcTax_csv["sales"])))
 	# INCOME
 	###########################################################################################################
 	
@@ -109,13 +112,13 @@ if __name__ == "__main__":
 		
 		# Retrieve valid json fit to fiken.
 		valid_json = postering.toJson()
-		
+		print(valid_json)
 		# Post entries to fiken
 		headers = fiken.post_til_fiken(valid_json)
-		
 		# If success, then mark these transactions as processed at DB.
 		if headers["Location"]:
-			for row in unprocessed_incomes:
+			print("Processing incomes: \n")
+			for row in tqdm(unprocessed_incomes):
 				db.process_income(int(row["Income_ID"]))
 				print("transaction with ID: {} has been processed, updating DB..".format(int(row["Income_ID"])))
 	else:
@@ -136,15 +139,16 @@ if __name__ == "__main__":
 			description = "Salg - " + str(row["Sell_Amount"]) + " " + str(row["Sell_Currency"])
 			date = row["Timestamp"]
 			entry = postering.addEntry(description, date)
-			gains = row["Buy_Amount"] - row["Cost_Base"]
-			
+
+			rate = db.get_rate_from_bank(row['Timestamp'], currency=row['Buy_Currency'])
+			gains = float(row["Buy_Amount"]) * float(rate) - float(row["Cost_Base"])
 			postering.addLine(
 				index=entry,
 				debit_amount=row["Cost_Base"],
 				debit_account=config["FIKEN_KUNDEKONTO"],
 				credit_account=config["FIKEN_ANNEN_VALUTA"],
 				vat_code="6")
-			
+
 			if gains >= 0:
 				g_debit = config["FIKEN_KUNDEKONTO"]
 				g_credit = config["FIKEN_AGIO_KONTO"]
@@ -164,7 +168,6 @@ if __name__ == "__main__":
 		
 		# Post entries to fiken
 		headers = fiken.post_til_fiken(valid_json)
-		
 		# If success, then mark these transactions as processed at DB.
 		if headers["Location"]:
 			for row in unprocessed_sales:

@@ -43,7 +43,7 @@ class BtcTax(object):
 			parse_float=Decimal,
 			parse_int=int,
 			debug_endpoint=True,
-			print = False):
+			debug = False):
 		
 		self.api_key = str(api_key) if api_key else None
 		self.api_secret = str(api_secret) if api_secret else None
@@ -60,7 +60,7 @@ class BtcTax(object):
 		self.data = None
 		self.filtered_data = None
 		self.dict_list = []
-		self.print = print
+		self.print = debug
 			
 	def __call__(self, command, taxyear=None, start=None, limit=None):
 		if command in PRIVATE_COMMANDS:

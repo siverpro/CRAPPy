@@ -1,8 +1,8 @@
-import mysql.connector as mariadb
-
 # Needed for norges bank
 import datetime
 import json
+
+import mysql.connector as mariadb
 import requests
 
 
@@ -16,7 +16,7 @@ class DBError(Exception):
 
 
 class Database(object):
-	def __init__(self, db_hostname=None, db_username=None, db_password=None, db_dataname=None, print = False):
+	def __init__(self, db_hostname=None, db_username=None, db_password=None, db_dataname=None, debug=False):
 		if db_hostname:
 			self.db_hostname = str(db_hostname)
 		else:
@@ -37,7 +37,7 @@ class Database(object):
 		else:
 			raise DBError("No database name is given.")
 			
-		self.print = print
+		self.print = debug
 		self.db_connection = None
 		self.income_table = "Tx_Log"
 		
@@ -114,7 +114,7 @@ class Database(object):
 			out = False
 		return out
 	
-	def append_sales(self, tax_id, timestamp, sell_amount, sell_currency, buy_amount, buy_currency, costbase) -> int:
+	def append_sales(self, tax_id, timestamp, sell_amount, sell_currency, buy_amount, buy_currency) -> int:
 		out = 0
 		db_date = datetime.datetime.fromisoformat(timestamp).strftime("%Y-%m-%d")
 		if self.sale_exists(tax_id):
@@ -123,6 +123,8 @@ class Database(object):
 		else:
 			if self.print:
 				print("New sale found, appending!")
+
+			costbase = self.sell_currency(sell_amount, sell_currency, timestamp)
 			cursor = self.db_connection.cursor()
 			
 			try:
@@ -282,7 +284,8 @@ class Database(object):
 			out = data['dataSets'][0]['series']['0:0:0:0']['observations']['0'][0]
 		elif response.status_code == 404:
 			new_date = dateobj - datetime.timedelta(days=1)
-			print("No matches. Trying previous day: {}".format(new_date.isoformat()))
+			if self.print:
+				print("No matches. Trying previous day: {}".format(new_date.isoformat()))
 			out = self.get_rate_from_bank(new_date.isoformat(), currency)
 		else:
 			print("Invalid request")
