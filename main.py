@@ -71,7 +71,7 @@ if __name__ == "__main__":
 				# Calculate NOK value from EUR
 				#rate = db.get_eur_rate(income_time.strftime("%Y-%m-%d"))
 
-				rate = db.get_rate_from_bank(income_time.strftime("%Y-%m-%d"), currency=row['currency'])
+				rate = db.get_rate(income_time.strftime("%Y-%m-%d"), currency=row['currency'])
 				nok_amount = row['volume'] * row['price'] * Decimal(rate)
 
 				# Insert to database
@@ -86,7 +86,7 @@ if __name__ == "__main__":
 			row['Volume'],
 			row['Symbol'],
 			row['Proceeds'],
-			"USD")
+			row["Currency"])
 	print("Total sales: {}".format(len(btcTax_csv["sales"])))
 	# INCOME
 	###########################################################################################################
@@ -138,8 +138,8 @@ if __name__ == "__main__":
 			date = row["Timestamp"]
 			entry = postering.addEntry(description, date)
 
-			rate = db.get_rate_from_bank(row['Timestamp'], currency=row['Buy_Currency'])
-			gains = float(row["Buy_Amount"]) * float(rate) - float(row["Cost_Base"])
+			rate = db.get_rate(row['Timestamp'], currency=row['Buy_Currency'])
+			gains = Decimal(row["Buy_Amount"]) * Decimal(rate) - Decimal(row["Cost_Base"])
 			postering.addLine(
 				index=entry,
 				debit_amount=row["Cost_Base"],
