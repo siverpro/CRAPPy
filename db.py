@@ -248,8 +248,10 @@ class Database(object):
 				original_row['Tx_Hash'])
 			return cost_base
 
-	def get_eur_rate(self, isodate):
-		query = f"SELECT Price FROM EUR WHERE Date=\"{isodate}\" LIMIT 0,1"
+	def get_rate(self, isodate, currency):
+		if currency == "NOK":
+			return Decimal(1.00)
+		query = f"SELECT ID, Price FROM EUR WHERE Date=\"{isodate}\" AND Currency=\"{currency}\" LIMIT 0,1"
 		cursor = self.db_connection.cursor(dictionary=True)
 		try:
 			cursor.execute(query)
@@ -258,9 +260,16 @@ class Database(object):
 			raise DBError(str(e))
 		row = cursor.fetchone()
 		if row is None:
-			rate = self.get_rate_from_bank(isodate, "EUR")
-			insert_query = f"INSERT INTO EUR (Date, Price) VALUES (\"{isodate}\", \"{rate}\")"
+			rate = self.get_rate_from_bank(isodate, currency)
+			insert_query = f"INSERT INTO EUR (Date, Price, Currency) VALUES (\"{isodate}\", \"{rate}\", \"{currency}\")"
 			cursor.execute(insert_query)
+			self.db_connection.commit()
+			return rate
+		elif row['Price'] == 0:
+			row_id = row['ID']
+			rate = self.get_rate_from_bank(isodate, currency)
+			update_query = f"UPDATE EUR SET Price=\"{rate}\" WHERE ID={row_id})"
+			cursor.execute(update_query)
 			self.db_connection.commit()
 			return rate
 		else:
