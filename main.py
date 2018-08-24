@@ -59,10 +59,9 @@ if __name__ == "__main__":
 
 	# Get API data for incomes
 	btcTax_data = btc_tax.get_transactions(taxyear=2018, start=0, limit=1000)
-	print("Retrieving incomes:\n")
 	end_date = datetime.date.today() - datetime.timedelta(days=2)
 	counter = 0
-	for row in tqdm(btcTax_data['transactions']):
+	for row in tqdm(btcTax_data['transactions'], desc="Retrieving incomes"):
 		counter += 1
 		# Wait 2 days until we process stuff
 		income_time = datetime.datetime.fromisoformat(row['date'])
@@ -79,9 +78,8 @@ if __name__ == "__main__":
 				db.append_income(row['id'], row['date'], row['symbol'], row['volume'], nok_amount, row['txhash'])
 
 	# Get sales data from CSV
-	print("Retrieving sales:\n")
 	btcTax_csv = btc_tax.get_data()
-	for row in tqdm(btcTax_csv['sales']):
+	for row in tqdm(btcTax_csv['sales'], desc="Retrieving sales"):
 		db.append_sales(
 			(row['Date Sold'] + row['Symbol']),
 			row['Date Sold'],
@@ -117,8 +115,8 @@ if __name__ == "__main__":
 		headers = fiken.post_til_fiken(valid_json)
 		# If success, then mark these transactions as processed at DB.
 		if headers["Location"]:
-			print("Processing incomes: \n")
-			for row in tqdm(unprocessed_incomes):
+
+			for row in tqdm(unprocessed_incomes, desc="Processing incomes"):
 				db.process_income(int(row["Income_ID"]))
 				print("transaction with ID: {} has been processed, updating DB..".format(int(row["Income_ID"])))
 	else:
@@ -170,7 +168,7 @@ if __name__ == "__main__":
 		headers = fiken.post_til_fiken(valid_json)
 		# If success, then mark these transactions as processed at DB.
 		if headers["Location"]:
-			for row in unprocessed_sales:
+			for row in tqdm(unprocessed_sales, desc="Processing sales"):
 				db.process_sale(int(row["Sale_ID"]))
 				print("Sale with ID: {} has been processed, updating DB..".format(int(row["Sale_ID"])))
 	else:
