@@ -66,7 +66,7 @@ if __name__ == "__main__":
 
 	# Set 2 days delay.
 	end_date = datetime.date.today() - datetime.timedelta(days=2)
-	SKIP = 0
+	SKIP = 1
 	if SKIP:
 		for row in tqdm(btcTax_data['transactions'], desc="Retrieving incomes"):
 
