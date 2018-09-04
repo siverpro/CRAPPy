@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # Built-in
 import datetime
 import json
@@ -23,7 +24,7 @@ from fiken import Fiken
 
 
 if __name__ == "__main__":
-	# Initialisations
+	# INITIALISATION
 	###########################################################################################################
 	# Load config file
 	with open('conf.json') as json_data_file:
@@ -43,13 +44,16 @@ if __name__ == "__main__":
 		db_username=config["DB_USERNAME"],
 		db_password=config["DB_PASSWORD"],
 		db_dataname=config["DB_DATA_NAME"],
+		db_table_income=config["DB_TABLE_INCOMES"],
+		db_table_sales=config["DB_TABLE_SALES"],
 		debug=False)
 	
 	# Init Fiken
 	fiken = Fiken(
 		user=config["FIKEN_USERNAME"],
 		passwd=config["FIKEN_PASSWORD"],
-		company_slug=config["FIKEN_COMPANY_SLUG"])
+		company_slug=config["FIKEN_COMPANY_SLUG"],
+		debug_endpoint=True)
 	
 	CURRENCIES = ['EUR', 'USD']
 	###########################################################################################################
@@ -58,39 +62,42 @@ if __name__ == "__main__":
 	db.connect()
 
 	# Get API data for incomes
-	btcTax_data = btc_tax.get_transactions(taxyear=2018, start=0, limit=1000)
+	btcTax_data = btc_tax.get_transactions(taxyear=2018, start=0, limit=99999)
+
+	# Set 2 days delay.
 	end_date = datetime.date.today() - datetime.timedelta(days=2)
-	counter = 0
-	for row in tqdm(btcTax_data['transactions'], desc="Retrieving incomes"):
-		counter += 1
-		# Wait 2 days until we process stuff
-		income_time = datetime.datetime.fromisoformat(row['date'])
+	SKIP = 0
+	if SKIP:
+		for row in tqdm(btcTax_data['transactions'], desc="Retrieving incomes"):
 
-		if end_date > income_time.date():
-			if row['action'] == "INCOME":
-				# Calculate NOK value from EUR
-				#rate = db.get_eur_rate(income_time.strftime("%Y-%m-%d"))
+			# Wait 2 days until we process stuff
+			income_time = datetime.datetime.fromisoformat(row['date'])
 
-				rate = db.get_rate(income_time.strftime("%Y-%m-%d"), currency=row['currency'])
-				nok_amount = row['volume'] * row['price'] * Decimal(rate)
+			if end_date > income_time.date():
+				if row['action'] == "INCOME":
+					# Calculate NOK value from EUR
+					#rate = db.get_eur_rate(income_time.strftime("%Y-%m-%d"))
 
-				# Insert to database
-				db.append_income(row['id'], row['date'], row['symbol'], row['volume'], nok_amount, row['txhash'])
+					rate = db.get_rate(income_time.strftime("%Y-%m-%d"), currency=row['currency'])
+					nok_amount = row['volume'] * row['price'] * Decimal(rate)
 
-	# Get sales data from CSV
-	btcTax_csv = btc_tax.get_data()
-	for row in tqdm(btcTax_csv['sales'], desc="Retrieving sales"):
-		db.append_sales(
-			(row['Date Sold'] + row['Symbol']),
-			row['Date Sold'],
-			row['Volume'],
-			row['Symbol'],
-			row['Proceeds'],
-			row["Currency"])
-	print("Total sales: {}".format(len(btcTax_csv["sales"])))
+					# Insert to database
+					db.append_income(row['id'], row['date'], row['symbol'], row['volume'], nok_amount, row['txhash'])
+
+		# Get sales data from CSV
+		btcTax_csv = btc_tax.get_data()
+		for row in tqdm(btcTax_csv['sales'], desc="Retrieving sales"):
+			db.append_sales(
+				(row['Date Sold'] + row['Symbol']),
+				row['Date Sold'],
+				row['Volume'],
+				row['Symbol'],
+				row['Proceeds'],
+				row["Currency"])
+
+
 	# INCOME
 	###########################################################################################################
-	
 	unprocessed_incomes = db.get_unprocessed_incomes()
 	# Loop through the transactions and fill the journal entries and lines to fit to fiken
 	if unprocessed_incomes:
@@ -110,15 +117,14 @@ if __name__ == "__main__":
 		
 		# Retrieve valid json fit to fiken.
 		valid_json = postering.toJson()
-		print(valid_json)
+
 		# Post entries to fiken
 		headers = fiken.post_til_fiken(valid_json)
 		# If success, then mark these transactions as processed at DB.
 		if headers["Location"]:
-
 			for row in tqdm(unprocessed_incomes, desc="Processing incomes"):
 				db.process_income(int(row["Income_ID"]))
-				print("transaction with ID: {} has been processed, updating DB..".format(int(row["Income_ID"])))
+				# print("transaction with ID: {} has been processed, updating DB..".format(int(row["Income_ID"])))
 	else:
 		print("No unprocessed transactions found.")
 		
@@ -170,7 +176,7 @@ if __name__ == "__main__":
 		if headers["Location"]:
 			for row in tqdm(unprocessed_sales, desc="Processing sales"):
 				db.process_sale(int(row["Sale_ID"]))
-				print("Sale with ID: {} has been processed, updating DB..".format(int(row["Sale_ID"])))
+				# print("Sale with ID: {} has been processed, updating DB..".format(int(row["Sale_ID"])))
 	else:
 		print("No unprocessed sales found.")
 	

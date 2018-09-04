@@ -1,6 +1,7 @@
 # Needed for norges bank
 import datetime
 import json
+from decimal import Decimal
 
 import mysql.connector as mariadb
 import requests
@@ -16,7 +17,16 @@ class DBError(Exception):
 
 
 class Database(object):
-	def __init__(self, db_hostname=None, db_username=None, db_password=None, db_dataname=None, debug=False):
+	def __init__(
+			self,
+			db_hostname=None,
+			db_username=None,
+			db_password=None,
+			db_dataname=None,
+			db_table_income=None,
+			db_table_sales=None,
+			debug=False):
+
 		if db_hostname:
 			self.db_hostname = str(db_hostname)
 		else:
@@ -39,7 +49,8 @@ class Database(object):
 			
 		self.print = debug
 		self.db_connection = None
-		self.income_table = "Tx_Log"
+		self.income_table = db_table_income
+		self.sales_table = db_table_sales
 		
 	def connect(self):
 		try:
@@ -78,7 +89,7 @@ class Database(object):
 			cursor = self.db_connection.cursor()
 
 			try:
-				query = "INSERT INTO A_Incomes (Tax_ID, Timestamp, Symbol, Amount, NOK_Amount, Tx_Hash) "
+				query = "INSERT INTO {} (Tax_ID, Timestamp, Symbol, Amount, NOK_Amount, Tx_Hash) ".format(self.income_table)
 				query += f"VALUES (\"{tax_id}\", {posixtime}, \"{currency}\", {amount}, {nok_amount}, \"{tx_hash}\")"
 				cursor.execute(query)
 			except Exception as e:
@@ -93,7 +104,7 @@ class Database(object):
 		out = True
 		cursor = self.db_connection.cursor()
 		
-		query = f"SELECT Income_ID FROM A_Incomes WHERE Tax_ID=\"{tax_id}\" LIMIT 0,1"
+		query = f"SELECT Income_ID FROM {self.income_table} WHERE Tax_ID=\"{tax_id}\" LIMIT 0,1"
 		cursor.execute(query)
 		
 		# Check log files for duplicates
@@ -106,7 +117,7 @@ class Database(object):
 		out = True
 		cursor = self.db_connection.cursor()
 		
-		query = f"SELECT Sale_ID FROM A_Sales WHERE Tax_ID = \"{tax_id}\" LIMIT 0,1"
+		query = f"SELECT Sale_ID FROM {self.sales_table} WHERE Tax_ID = \"{tax_id}\" LIMIT 0,1"
 		cursor.execute(query)
 		# Check db for duplicates
 		if cursor.fetchone() is None:
@@ -128,7 +139,7 @@ class Database(object):
 			cursor = self.db_connection.cursor()
 			
 			try:
-				query = "INSERT INTO A_Sales (Tax_ID, Timestamp, Sell_Amount, Sell_Currency, Buy_Amount, Buy_Currency, Cost_Base) "
+				query = f"INSERT INTO {self.sales_table} (Tax_ID, Timestamp, Sell_Amount, Sell_Currency, Buy_Amount, Buy_Currency, Cost_Base) "
 				query += f"VALUES(\"{tax_id}\", \"{db_date}\", {sell_amount}, \"{sell_currency}\", {buy_amount}, \"{buy_currency}\", {costbase})"
 				cursor.execute(query)
 			except Exception as e:
@@ -142,21 +153,23 @@ class Database(object):
 		if self.print:
 			print("Retrieving transactions not sent to Fiken...")
 		cursor = self.db_connection.cursor(dictionary=True)
-		cursor.execute("SELECT * FROM A_Incomes WHERE Processed = 0")
+		query = "SELECT * FROM {} WHERE Processed = 0".format(self.income_table)
+		cursor.execute(query)
 		return cursor.fetchall()
 
 	def get_unprocessed_sales(self):
 		if self.print:
 			print("Retrieving sales not sent to Fiken...")
 		cursor = self.db_connection.cursor(dictionary=True)
-		cursor.execute("SELECT * FROM A_Sales WHERE Processed = 0")
+		query = "SELECT * FROM {} WHERE Processed = 0".format(self.sales_table)
+		cursor.execute(query)
 		return cursor.fetchall()
 
 	def process_sale(self, sale_id):
 		var = 1
 		cursor = self.db_connection.cursor()
 		try:
-			query = "UPDATE A_Sales SET Processed=%s WHERE Sale_ID = %s"
+			query = "UPDATE {} SET Processed=%s WHERE Sale_ID = %s".format(self.sales_table)
 			cursor.execute(query, (var, sale_id))
 		except self.db_connection.Error as error:
 			print("Error: {}".format(error))
@@ -167,7 +180,7 @@ class Database(object):
 		var = 1
 		cursor = self.db_connection.cursor()
 		try:
-			query = "UPDATE A_Incomes SET Processed=%s WHERE Income_ID=%s"
+			query = "UPDATE {} SET Processed=%s WHERE Income_ID=%s".format(self.income_table)
 			cursor.execute(query, (var, income_id))
 		except Exception as e:
 			print("Error: {}".format(e))
@@ -176,7 +189,7 @@ class Database(object):
 
 	def get_balance(self, currency):
 		cursor = self.db_connection.cursor(dictionary=True)
-		query = f"SELECT SUM(Amount) AS Amount FROM A_Incomes WHERE Sell_Date IS NULL AND Symbol = \"{currency}\""
+		query = f"SELECT SUM(Amount) AS Amount FROM {self.income_table} WHERE Sell_Date IS NULL AND Symbol = \"{currency}\""
 		cursor.execute(query)
 		return cursor.fetchone()['Amount']
 
@@ -191,7 +204,7 @@ class Database(object):
 			return None
 
 		cursor = self.db_connection.cursor(dictionary=True)
-		query = "SELECT Income_ID, Amount, NOK_Amount FROM A_Incomes WHERE Sell_Date IS NULL "
+		query = "SELECT Income_ID, Amount, NOK_Amount FROM {} WHERE Sell_Date IS NULL ".format(self.income_table)
 		query += f"AND Symbol = \"{currency}\" ORDER BY Timestamp ASC"
 		cursor.execute(query)
 		unsold = cursor.fetchall()
@@ -209,7 +222,7 @@ class Database(object):
 				break
 
 		for s_id in sold_ids:  # mark them as sold
-			query = f"UPDATE A_Incomes SET Sell_Date = \"{date}\" WHERE Income_ID = {s_id}"
+			query = f"UPDATE {self.income_table} SET Sell_Date = \"{date}\" WHERE Income_ID = {s_id}"
 			cursor.execute(query)
 		self.db_connection.commit()  # The list has now been marked as sold
 
@@ -220,7 +233,7 @@ class Database(object):
 			# The last income has to be split.
 			diff = value - amount
 			# The row that needs to be split
-			query = f"SELECT * FROM A_Incomes WHERE Income_ID = {last_id}"
+			query = f"SELECT * FROM {self.income_table} WHERE Income_ID = {last_id}"
 			cursor.execute(query)
 			original_row = cursor.fetchone()
 
@@ -235,7 +248,7 @@ class Database(object):
 				print("Remainder: NOK {}, FCT: {}".format(nok_remainder, remainder))
 				print("New row: NOK {}, FCT: {}".format(nok_diff, diff))
 			
-			query = f"UPDATE A_Incomes SET Amount = {remainder}, NOK_Amount = {nok_remainder}  WHERE Income_ID = {last_id}"
+			query = f"UPDATE {self.income_table} SET Amount = {remainder}, NOK_Amount = {nok_remainder}  WHERE Income_ID = {last_id}"
 			cursor.execute(query)
 			self.db_connection.commit()  # Original row fixd.
 			

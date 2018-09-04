@@ -5,6 +5,7 @@ from json import loads as _loads
 from requests import get as _get
 from requests import post as _post
 from requests.auth import HTTPBasicAuth
+
 from exceptions import *
 
 RELS = ['createGeneralJournalEntriesService', 'search']
@@ -38,7 +39,7 @@ class Fiken(object):
 			user=None,
 			passwd=None,
 			company_slug=None,
-			timeout=5,
+			timeout=15,
 			parse_float=Decimal,
 			parse_int=int,
 			debug_endpoint=False):
@@ -88,8 +89,7 @@ class Fiken(object):
 			if ret.status_code != 201:
 				print(ret.content)
 				raise FikenError(ret.status_code)
-			
-			
+
 			if body:
 				headers = ret.headers
 				return headers

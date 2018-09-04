@@ -152,6 +152,7 @@ class BtcTax(object):
 		gain_sum = 0
 		cost_basis_sum = 0
 		sale_crypto_sum = 0
+		currency = None
 		
 		symbols = []
 		for row in capital_gains_list:
@@ -176,7 +177,8 @@ class BtcTax(object):
 								'Cost Basis':cost_basis_sum,
 								'Gain': gain_sum,
 								'Symbol': symbol,
-								'Volume': sale_crypto_sum})
+								'Volume': sale_crypto_sum,
+								'Currency': row["Currency"]})
 						
 						# Reset vars
 						sale_date = row['Date Sold']
@@ -184,7 +186,7 @@ class BtcTax(object):
 						cost_basis_sum = Decimal(row["Cost Basis"])
 						gain_sum = Decimal(row['Gain'])
 						sale_crypto_sum = Decimal(row['Volume'])
-					
+						currency = row["Currency"]
 					else:  # Just adding to the same date ...
 						sale_sum += Decimal(row['Proceeds'])
 						cost_basis_sum += Decimal(row["Cost Basis"])
@@ -196,7 +198,8 @@ class BtcTax(object):
 				'Cost Basis': cost_basis_sum,
 				'Gain': gain_sum,
 				'Symbol': symbol,
-				'Volume': sale_crypto_sum})
+				'Volume': sale_crypto_sum,
+				'Currency': currency})
 		
 		return {"income": tx_list, "sales": sales_list}
 	
