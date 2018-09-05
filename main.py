@@ -33,7 +33,7 @@ if __name__ == "__main__":
 	except IOError as e:
 		print(e)
 
-	
+	# 
 	# Init Bitcoin TAX
 	btc_tax = BtcTax(
 		username=config["BITOOINTAX_USERNAME"],
