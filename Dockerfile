@@ -13,8 +13,8 @@ RUN git clone -b ${BRANCH} https://github.com/siverpro/CRAPPy.git
 
 WORKDIR /app/CRAPPy
 
+RUN pip install -r /requirements.txt
+
 COPY main.py /main.py
 
-RUN chmod +x /main.py
-
-ENTRYPOINT ["/main.py"]
+CMD ["python", "./main.py" ]
