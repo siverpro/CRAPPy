@@ -13,7 +13,7 @@ RUN git clone -b ${BRANCH} https://github.com/siverpro/CRAPPy.git
 
 WORKDIR /app/CRAPPy
 
-RUN pip install -r requirements.txt
+RUN pip install -r /requirements.txt
 
 COPY main.py /main.py
 
