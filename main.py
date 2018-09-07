@@ -3,9 +3,7 @@
 import datetime
 import json
 from decimal import Decimal
-
 from tqdm import tqdm
-
 from FriPostering import FriPostering
 # Own
 from btctax import BtcTax

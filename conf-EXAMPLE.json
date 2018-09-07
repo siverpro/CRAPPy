@@ -1,0 +1,22 @@
+{
+  "BITOOINTAX_USERNAME": "username/email",
+  "BITCOINTAX_PASSWORD": "password",
+  "BITCOINTAX_API_KEY": "12345678910abcdef",
+  "BITCOINTAX_API_SECRET": "12345678910abcdefghi",
+
+  "FIKEN_USERNAME": "username/email",
+  "FIKEN_PASSWORD": "password",
+  "FIKEN_COMPANY_SLUG": "my-company-name",
+  "FIKEN_ANNEN_VALUTA": "1908",
+  "FIKEN_AGIO_KONTO": "8060",
+  "FIKEN_DISAGIO_KONTO": "8160",
+  "FIKEN_KUNDEKONTO": "1500:10001",
+  "FIKEN_FINANSINNTEKTSKONTO": "3950",
+
+  "DB_HOSTNAME": "db_hostname",
+  "DB_USERNAME": "db_username",
+  "DB_PASSWORD": "db_password",
+  "DB_DATA_NAME": "db_name",
+  "DB_TABLE_INCOMES": "table_incomes",
+  "DB_TABLE_SALES": "tables_sales"
+}
