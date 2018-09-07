@@ -25,9 +25,13 @@ if __name__ == "__main__":
 	# INITIALISATION
 	###########################################################################################################
 	# Load config file
-	with open('conf.json') as json_data_file:
-		config = json.load(json_data_file)
-	
+	try:
+		with open('conf.json') as json_data_file:
+			config = json.load(json_data_file)
+	except IOError as e:
+		print(e)
+
+	# 
 	# Init Bitcoin TAX
 	btc_tax = BtcTax(
 		username=config["BITOOINTAX_USERNAME"],
