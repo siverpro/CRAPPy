@@ -3,7 +3,9 @@
 import datetime
 import json
 from decimal import Decimal
+
 from tqdm import tqdm
+
 from FriPostering import FriPostering
 # Own
 from btctax import BtcTax
@@ -55,7 +57,7 @@ if __name__ == "__main__":
 		user=config["FIKEN_USERNAME"],
 		passwd=config["FIKEN_PASSWORD"],
 		company_slug=config["FIKEN_COMPANY_SLUG"],
-		debug_endpoint=True)
+		debug_endpoint=False)
 	
 	CURRENCIES = ['EUR', 'USD']
 	###########################################################################################################

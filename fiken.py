@@ -39,7 +39,7 @@ class Fiken(object):
 			user=None,
 			passwd=None,
 			company_slug=None,
-			timeout=15,
+			timeout=180,
 			parse_float=Decimal,
 			parse_int=int,
 			debug_endpoint=False):
