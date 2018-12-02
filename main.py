@@ -124,7 +124,6 @@ if __name__ == "__main__":
 
         # Retrieve valid json fit to fiken.
         valid_json = postering.toJson()
-        exit(0)
         # Post entries to fiken
         headers = fiken.post_til_fiken(valid_json)
         # If success, then mark these transactions as processed at DB.
