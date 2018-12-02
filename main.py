@@ -77,8 +77,7 @@ if __name__ == "__main__":
 
 	SKIP = 1
 	if SKIP:
-		for row in tqdm(btcTax_data['transactions'], desc="Retrieving incomes"):
-
+		for row in tqdm(btcTax_data['transactions'], desc="Retrieving transactions"):
 			# Wait 2 days until we process stuff
 			income_time = datetime.datetime.fromisoformat(row['date'])
 
@@ -95,7 +94,8 @@ if __name__ == "__main__":
 
 		# Get sales data from CSV
 		btcTax_csv = btc_tax.get_capital_gains()
-		for row in tqdm(btcTax_csv['sales'], desc="Retrieving sales"):
+		for row in tqdm(reversed(btcTax_csv['sales']), desc="Retrieving sales"):
+
 			db.append_sales(
 				(row['Date Sold'] + row['Symbol']),
 				row['Date Sold'],
@@ -103,7 +103,7 @@ if __name__ == "__main__":
 				row['Symbol'],
 				row['Proceeds'],
 				row["Currency"])
-			
+
 	# INCOME
 	###########################################################################################################
 	unprocessed_incomes = db.get_unprocessed_incomes()
@@ -148,8 +148,9 @@ if __name__ == "__main__":
 		postering = FriPostering(description="Import fra Bitcoin.tax")
 		
 		for row in unprocessed_sales:
-			description = "Salg:" + str(row["Sell_Amount"]) + " " + str(row["Sell_Currency"])
 			date = row["Timestamp"]
+			description = "Salg:" + str(row["Sell_Amount"]) + " " + str(row["Sell_Currency"]) + ". Dato: " + str(date)
+
 			entry = postering.addEntry(description, date)
 
 			rate = db.get_rate(row['Timestamp'], currency=row['Buy_Currency'])
