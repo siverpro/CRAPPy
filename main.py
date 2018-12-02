@@ -40,7 +40,7 @@ if __name__ == "__main__":
 		password=config["BITCOINTAX_PASSWORD"],
 		api_key=config["BITCOINTAX_API_KEY"],
 		api_secret=config["BITCOINTAX_API_SECRET"],
-		debug=True)
+		debug=False)
 	
 	# Init DB
 	db = Database(
@@ -77,7 +77,7 @@ if __name__ == "__main__":
 
 	SKIP = 1
 	if SKIP:
-		for row in tqdm(btcTax_data['transactions'], desc="Retrieving transactions"):
+		for row in tqdm(btcTax_data['transactions'], desc="Retrieving all transactions from API"):
 			# Wait 2 days until we process stuff
 			income_time = datetime.datetime.fromisoformat(row['date'])
 
@@ -94,7 +94,7 @@ if __name__ == "__main__":
 
 		# Get sales data from CSV
 		btcTax_csv = btc_tax.get_capital_gains()
-		for row in tqdm(btcTax_csv['sales'], desc="Retrieving sales"):
+		for row in tqdm(btcTax_csv['sales'], desc="Retrieving sales from CSV"):
 
 			db.append_sales(
 				(row['Date Sold'] + row['Symbol']),
@@ -103,7 +103,7 @@ if __name__ == "__main__":
 				row['Symbol'],
 				row['Proceeds'],
 				row["Currency"])
-
+	exit(0)
 	# INCOME
 	###########################################################################################################
 	unprocessed_incomes = db.get_unprocessed_incomes()
