@@ -103,7 +103,7 @@ if __name__ == "__main__":
 				row['Symbol'],
 				row['Proceeds'],
 				row["Currency"])
-	exit(0)
+
 	# INCOME
 	###########################################################################################################
 	unprocessed_incomes = db.get_unprocessed_incomes()
