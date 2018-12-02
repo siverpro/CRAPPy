@@ -94,7 +94,7 @@ if __name__ == "__main__":
 
 		# Get sales data from CSV
 		btcTax_csv = btc_tax.get_capital_gains()
-		for row in tqdm(reversed(btcTax_csv['sales']), desc="Retrieving sales"):
+		for row in tqdm(btcTax_csv['sales'], desc="Retrieving sales"):
 
 			db.append_sales(
 				(row['Date Sold'] + row['Symbol']),
