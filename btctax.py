@@ -61,64 +61,6 @@ class BtcTax(object):
 		self.filtered_data = None
 		self.dict_list = []
 		self.print = debug
-			
-	def __call__(self, command, taxyear=None, start=None, limit=None):
-		if command in PRIVATE_COMMANDS:
-			if command == "transactions":
-				if not self.api_key or not self.api_secret:
-					raise BtcTaxError("Key and Secret needed!")
-				url = self.base_api_url + '{}?'.format(command)
-
-				headers = {
-					'X-APIKEY': self.api_key,
-					'X-APISECRET': self.api_secret,
-					'Accept': 'application/json',
-					'User-Agent': 'My user agent'}
-				
-				payload = {
-					"taxyear": int(taxyear) if taxyear else "",
-					"start": int(start) if start else "",
-					"limit": int(limit) if limit else ""}
-				
-				ret = _get(url, headers=headers, timeout=self.timeout, params=payload)
-
-				if ret.status_code != 200:
-					raise BtcTaxError("Status Code: {}".format(ret.status_code))
-
-				json_out = _loads(ret.text, parse_float=self.parse_float, parse_int=self.parse_int)
-
-				if json_out['status'] == 'success':
-					return json_out['data']
-				else:
-					return None
-
-			elif command == "capital_gains":
-				if not self.username or not self.password:
-					raise BtcTaxError("Username and password needed")
-
-				url = self.base_login_url
-				s = session()
-				form = {
-					"email": self.username,
-					"password": self.password,
-					"continue": "",
-					"code": ""}
-
-				ret = s.post(url, data=form)
-
-				if ret.status_code != 200:
-					raise BtcTaxError("Status Code: %s" % ret.status_code)
-
-				self.date_today = datetime.datetime.today().strftime('%Y-%m-%d')
-				capital_gains_csv_url = 'https://bitcoin.tax/gains/' \
-										'download?reporttype=allocations&format=csv&ignorezero=false&rounded=false'
-				
-				r = s.get(capital_gains_csv_url)
-				encoding = r.headers['Content-Type'].split(";")[1].split("=")[1]
-				
-				return self.read_csv_file(r.content.decode(str(encoding)))
-		else:
-			raise BtcTaxError("Invalid command")
 
 	def read_csv_file(self, file):
 		dict_list = []
@@ -137,13 +79,47 @@ class BtcTax(object):
 		except Exception as e:
 			raise BtcTaxError(str(e))
 		return dict_list
-		
-	def get_data(self):
-		capital_gains_list = self.get_capital_gains()
-	
+
+	def call(self, url=None, headers=None, payload=None, data=None):
+		if payload is not None:
+			ret = _get(url, headers=headers, timeout=self.timeout, params=payload)
+
+			if ret.status_code != 200:
+				raise BtcTaxError("Status Code: {}".format(ret.status_code))
+			else:
+				return ret
+
+		elif data is not None:
+			s = session()
+			ret = s.post(url, data=data)
+			if ret.status_code != 200:
+				raise BtcTaxError("Status Code: %s" % ret.status_code)
+			else:
+				capital_gains_csv_url = 'https://bitcoin.tax/gains/' \
+										'download?reporttype=allocations&format=csv&ignorezero=false&rounded=false'
+				r = s.get(capital_gains_csv_url)
+				encoding = r.headers['Content-Type'].split(";")[1].split("=")[1]
+				return r.content.decode(str(encoding))
+
+	def get_capital_gains(self):
+		if not self.username or not self.password:
+			raise BtcTaxError("Username and password needed")
+
+		ret = None
+		url = self.base_login_url
+		form = {
+			"email": self.username,
+			"password": self.password,
+			"continue": "",
+			"code": ""}
+
+		ret = self.call(url=url, data=form)
+
+		capital_gains_csv = self.read_csv_file(ret)
+
 		# We only want rows from the day before yesterday due to btctax calculations
 		to_date = datetime.date.today() - datetime.timedelta(days=1)
-		
+
 		tx_list = []
 		sales_list = []
 		# Vars for summing up sales
@@ -153,14 +129,14 @@ class BtcTax(object):
 		cost_basis_sum = 0
 		sale_crypto_sum = 0
 		currency = None
-		
+
 		symbols = []
-		for row in capital_gains_list:
+		for row in capital_gains_csv:
 			if row["Symbol"] not in symbols:
 				symbols.append(row["Symbol"])
-				
+
 		for symbol in symbols:
-			for row in capital_gains_list:
+			for row in capital_gains_csv:
 				date_acquired = datetime.datetime.strptime(row['Date Acquired'], '%Y-%m-%d').date()
 				date_sold = datetime.datetime.strptime(row['Date Sold'], '%Y-%m-%d').date()
 
@@ -168,18 +144,18 @@ class BtcTax(object):
 					tx_list.append(row)
 				if row['Date Sold'] and (date_sold < to_date):
 					if row['Date Sold'] != sale_date:  # A new date is encountered.
-						
+
 						# Add the old values to the list first
 						if sale_date:
 							sales_list.append({
 								'Date Sold': sale_date,
 								'Proceeds': sale_sum,
-								'Cost Basis':cost_basis_sum,
+								'Cost Basis': cost_basis_sum,
 								'Gain': gain_sum,
 								'Symbol': symbol,
 								'Volume': sale_crypto_sum,
 								'Currency': row["Currency"]})
-						
+
 						# Reset vars
 						sale_date = row['Date Sold']
 						sale_sum = Decimal(row['Proceeds'])
@@ -200,16 +176,31 @@ class BtcTax(object):
 				'Symbol': symbol,
 				'Volume': sale_crypto_sum,
 				'Currency': currency})
-		
+
 		return {"income": tx_list, "sales": sales_list}
-	
-	def get_capital_gains(self):
-		return self.__call__('capital_gains')
-	
-	def get_transactions(self, taxyear=None, start=None, limit=None):
-		
-		return self.__call__('transactions', taxyear, start, limit)
-	
-	@staticmethod
-	def get_filtered_transaction(list_dict: dict, action: str) -> list:
-		return [d for d in list_dict['transactions'] if d['action'] == action]
+
+	def get_transactions(self, taxyear=datetime.date.today().year, start=0, limit=None):
+		if not self.api_key or not self.api_secret:
+			raise BtcTaxError("Key and Secret needed!")
+		url = self.base_api_url + '{}?'.format("transactions")
+
+		headers = {
+			'X-APIKEY': self.api_key,
+			'X-APISECRET': self.api_secret,
+			'Accept': 'application/json',
+			'User-Agent': 'My user agent'}
+
+		payload = {
+			"taxyear": int(taxyear),
+			"start": int(start),
+			"limit": int(limit)}
+
+		ret = self.call(url, headers, payload)
+
+		json_out = _loads(ret.text, parse_float=self.parse_float, parse_int=self.parse_int)
+
+		if json_out['status'] == 'success':
+			return json_out['data']
+		else:
+			return None
+

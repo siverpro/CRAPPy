@@ -40,7 +40,7 @@ if __name__ == "__main__":
 		password=config["BITCOINTAX_PASSWORD"],
 		api_key=config["BITCOINTAX_API_KEY"],
 		api_secret=config["BITCOINTAX_API_SECRET"],
-		debug=False)
+		debug=True)
 	
 	# Init DB
 	db = Database(
@@ -66,10 +66,15 @@ if __name__ == "__main__":
 	db.connect()
 
 	# Get API data for incomes
-	btcTax_data = btc_tax.get_transactions(taxyear=2018, start=0, limit=99999)
+	btcTax_data = btc_tax.get_transactions(taxyear=2018, start=0, limit=999999)
+
+	total_transactions = btcTax_data["total"]
+	transactions = btcTax_data["transactions"]
 
 	# Set 2 days delay.
-	end_date = datetime.date.today() - datetime.timedelta(days=2)
+	days_delay = 2
+	end_date = datetime.date.today() - datetime.timedelta(days=days_delay)
+
 	SKIP = 1
 	if SKIP:
 		for row in tqdm(btcTax_data['transactions'], desc="Retrieving incomes"):
@@ -80,7 +85,7 @@ if __name__ == "__main__":
 			if end_date > income_time.date():
 				if row['action'] == "INCOME":
 					# Calculate NOK value from EUR
-					#rate = db.get_eur_rate(income_time.strftime("%Y-%m-%d"))
+					# rate = db.get_eur_rate(income_time.strftime("%Y-%m-%d"))
 
 					rate = db.get_rate(income_time.strftime("%Y-%m-%d"), currency=row['currency'])
 					nok_amount = row['volume'] * row['price'] * Decimal(rate)
@@ -89,7 +94,7 @@ if __name__ == "__main__":
 					db.append_income(row['id'], row['date'], row['symbol'], row['volume'], nok_amount, row['txhash'])
 
 		# Get sales data from CSV
-		btcTax_csv = btc_tax.get_data()
+		btcTax_csv = btc_tax.get_capital_gains()
 		for row in tqdm(btcTax_csv['sales'], desc="Retrieving sales"):
 			db.append_sales(
 				(row['Date Sold'] + row['Symbol']),
@@ -98,8 +103,7 @@ if __name__ == "__main__":
 				row['Symbol'],
 				row['Proceeds'],
 				row["Currency"])
-
-
+			
 	# INCOME
 	###########################################################################################################
 	unprocessed_incomes = db.get_unprocessed_incomes()
@@ -109,7 +113,7 @@ if __name__ == "__main__":
 		postering = FriPostering(description="Import fra Bitcoin.tax")
 		
 		for row in unprocessed_incomes:
-			description = "Inntekt - " + str(row["Amount"]) + " " + str(row["Symbol"])
+			description = "Inntekt:" + str(row["Amount"]) + " " + str(row["Symbol"] + ". Txhash: " + row['txhash'])
 			date = datetime.datetime.fromtimestamp(row["Timestamp"]).date()
 			entry = postering.addEntry(description, str(date))
 			line = postering.addLine(
@@ -144,7 +148,7 @@ if __name__ == "__main__":
 		postering = FriPostering(description="Import fra Bitcoin.tax")
 		
 		for row in unprocessed_sales:
-			description = "Salg - " + str(row["Sell_Amount"]) + " " + str(row["Sell_Currency"])
+			description = "Salg:" + str(row["Sell_Amount"]) + " " + str(row["Sell_Currency"])
 			date = row["Timestamp"]
 			entry = postering.addEntry(description, date)
 
